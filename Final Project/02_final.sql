@@ -1,7 +1,9 @@
 -- Database: dvdrental
 -- Schema: college_core
 
-create schema if not exists college_core;
+drop schema if exists college_core cascade;
+create schema college_core;
+
 set search_path to college_core, public;
 
 -- PART 2: CREATE TABLES (With explicit PKs, FKs, ON DELETE, and Constraints)
@@ -56,27 +58,64 @@ create table if not exists grade (
     gradedate date not null,
     passed boolean generated always as (gradevalue >= 50) stored
 );
-
--- PART 3: ALTER STATEMENTS 
+-- PART 3: ALTER STATEMENTS
 
 -- 1. Modify data type length for expanding departments
-alter table teacher alter column department type varchar(150);
+alter table teacher
+alter column department type varchar(150);
 
 -- 2. Structurally add student contact column
-alter table students add column phone_number varchar(20);
+alter table students
+add column if not exists phone_number varchar(20);
 
 -- 3. Apply complex formatting constraint verification via regex patterns
-alter table students add constraint chk_phone check (phone_number is null or phone_number similar to '\+?[0-9\-]+');
+do $$
+begin
+    if not exists (
+        select 1
+        from pg_constraint
+        where conname = 'chk_phone'
+    ) then
+        alter table students
+        add constraint chk_phone
+        check (
+            phone_number is null
+            or phone_number similar to '\+?[0-9\-]+'
+        );
+    end if;
+end $$;
 
 -- 4. Add column for context metadata structural field to courses
-alter table courses add column description varchar(255);
+alter table courses
+add column if not exists description varchar(255);
 
--- 5. Shift operational rules by updating structural default policies
--- Prevent duplicate student enrollment in the same course
-alter table enrollment add constraint uq_student_course unique (studentid, courseid);
+-- 5. Prevent duplicate student enrollment in the same course
+do $$
+begin
+    if not exists (
+        select 1
+        from pg_constraint
+        where conname = 'uq_student_course'
+    ) then
+        alter table enrollment
+        add constraint uq_student_course
+        unique (studentid, courseid);
+    end if;
+end $$;
 
--- Restrict enrollment status values
-alter table enrollment add constraint chk_enrollment_status check (status in ('Active','Pending','Withdrawn'));
+-- 6. Restrict enrollment status values
+do $$
+begin
+    if not exists (
+        select 1
+        from pg_constraint
+        where conname = 'chk_enrollment_status'
+    ) then
+        alter table enrollment
+        add constraint chk_enrollment_status
+        check (status in ('Active','Pending','Withdrawn'));
+    end if;
+end $$;
 
 -- PART 4: INSERT DATA 
 
@@ -146,23 +185,19 @@ insert into grade(studentid, courseid, teacherid, gradevalue, gradedate) values
 -- PART 5: UPDATE / DELETE (With Multi-table updates and safe Transactions)
 
 -- UPDATE 1: Standard update using conditional filter
-update students set phone_number='+7775789078' where email='a.amanbai24@apec.edu.kz';
+-- UPDATE 2: Multi-table update (safe for reruns)
 
--- UPDATE 2: Advanced multi-table update joining courses to inject curriculum bonus points
 update grade g
-set gradevalue = case when (g.gradevalue + 5) > 100 then 100 else g.gradevalue + 5 end
+set gradevalue =
+    case
+        when g.gradevalue between 0 and 95
+             and c.credits >= 5
+        then g.gradevalue + 5
+        else g.gradevalue
+    end
 from courses c
-where g.courseid=c.courseid and c.credits>=5;
-
--- DELETE: Isolated explicit transaction block with deletion validation mapping
-begin;
-
-delete from enrollment
-where status='Withdrawn'
-returning enrollmentid;
-
-rollback;
-
+where g.courseid = c.courseid
+  and c.credits >= 5;
 -- PART 6: SECURITY ROLES 
 
 drop role if exists college_readonly;
