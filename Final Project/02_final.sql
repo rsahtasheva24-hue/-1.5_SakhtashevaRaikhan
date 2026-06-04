@@ -149,9 +149,7 @@ insert into grade(studentid, courseid, teacherid, gradevalue, gradedate) values
 ((select studentid from students where email='m.le22@apec.edu.kz'), (select courseid from courses where coursename='Software Architecture'), (select teacherid from teacher where email='d.ermekov@apec.edu.kz'), 83, '2026-06-01');
 
 
--- ============================================================================
 -- PART 5: UPDATE / DELETE (With Multi-table updates and safe Transactions)
--- ============================================================================
 
 -- UPDATE 1: Standard update using conditional filter
 update students set phone_number='+7775789078' where email='a.amanbai24@apec.edu.kz';
@@ -171,10 +169,7 @@ returning enrollmentid;
 
 rollback;
 
-
--- ============================================================================
--- PART 6: SECURITY ROLES (Role definitions, target access provisions & revokes)
--- ============================================================================
+-- PART 6: SECURITY ROLES 
 
 drop role if exists college_readonly;
 drop role if exists college_writer;
