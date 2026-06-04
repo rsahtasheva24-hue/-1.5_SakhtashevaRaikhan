@@ -119,8 +119,6 @@ end $$;
 
 -- PART 4: INSERT DATA 
 
-truncate table grade, enrollment, courses, students, "Group", teacher restart identity cascade;
-
 -- Teachers (5 rows)
 insert into teacher(firstname, lastname, email, department) values
 ('Askar', 'Bimurzaev', 'a.bimurzaev@apec.edu.kz', 'PO3.1'),
@@ -183,6 +181,9 @@ insert into grade(studentid, courseid, teacherid, gradevalue, gradedate) values
 
 
 -- PART 5: UPDATE / DELETE (With Multi-table updates and safe Transactions)
+update students
+set phone_number = '+7775789078'
+where email = 'a.amanbai24@apec.edu.kz';
 
 -- UPDATE 1: Standard update using conditional filter
 -- UPDATE 2: Multi-table update (safe for reruns)
@@ -198,6 +199,14 @@ set gradevalue =
 from courses c
 where g.courseid = c.courseid
   and c.credits >= 5;
+
+begin;
+
+delete from enrollment
+where status = 'Withdrawn'
+returning enrollmentid;
+
+rollback;
 -- PART 6: SECURITY ROLES 
 
 drop role if exists college_readonly;
