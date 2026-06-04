@@ -6,12 +6,6 @@ set search_path to college_core, public;
 
 -- PART 2: CREATE TABLES (With explicit PKs, FKs, ON DELETE, and Constraints)
 
-drop table if exists grade cascade;
-drop table if exists enrollment cascade;
-drop table if exists courses cascade;
-drop table if exists students cascade;
-drop table if exists "Group" cascade;
-drop table if exists teacher cascade;
 
 create table if not exists teacher (
     teacherid int generated always as identity primary key,
