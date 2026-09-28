@@ -1,0 +1,282 @@
+-- Блок очистки структуры (DROP TABLE CASCADE)
+DROP TABLE IF EXISTS Enrollment CASCADE;
+DROP TABLE IF EXISTS Course CASCADE;
+DROP TABLE IF EXISTS Document CASCADE;
+DROP TABLE IF EXISTS Application CASCADE;
+DROP TABLE IF EXISTS Program CASCADE;
+DROP TABLE IF EXISTS Student CASCADE;
+DROP TABLE IF EXISTS University CASCADE;
+DROP TABLE IF EXISTS Country CASCADE;
+
+-- PART 4. DATABASE CREATION / Создание таблиц (CREATE TABLE)
+CREATE TABLE Country (
+    country_id SERIAL PRIMARY KEY,
+    country_name VARCHAR(100) NOT NULL UNIQUE,
+    continent VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE University (
+    university_id SERIAL PRIMARY KEY,
+    country_id INT NOT NULL,
+    university_name VARCHAR(150) NOT NULL,
+    ranking INT CHECK (ranking > 0),
+    FOREIGN KEY (country_id) REFERENCES Country(country_id) ON DELETE CASCADE
+);
+
+CREATE TABLE Student (
+    student_id SERIAL PRIMARY KEY,
+    home_university_id INT NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    gpa NUMERIC(3, 2) CHECK (gpa >= 0.0 AND gpa <= 4.0),
+    FOREIGN KEY (home_university_id) REFERENCES University(university_id) ON DELETE CASCADE
+);
+
+CREATE TABLE Program (
+    program_id SERIAL PRIMARY KEY,
+    host_university_id INT NOT NULL,
+    program_name VARCHAR(150) NOT NULL,
+    semester VARCHAR(20) NOT NULL,
+    max_capacity INT CHECK (max_capacity > 0),
+    FOREIGN KEY (host_university_id) REFERENCES University(university_id) ON DELETE CASCADE
+);
+
+CREATE TABLE Application (
+    application_id SERIAL PRIMARY KEY,
+    student_id INT NOT NULL,
+    program_id INT NOT NULL,
+    status VARCHAR(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected')),
+    application_date DATE NOT NULL,
+    FOREIGN KEY (student_id) REFERENCES Student(student_id) ON DELETE CASCADE,
+    FOREIGN KEY (program_id) REFERENCES Program(program_id) ON DELETE CASCADE,
+    UNIQUE (student_id, program_id)
+);
+
+CREATE TABLE Document (
+    document_id SERIAL PRIMARY KEY,
+    application_id INT NOT NULL UNIQUE,
+    passport_copy BOOLEAN DEFAULT FALSE,
+    motivation_letter BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (application_id) REFERENCES Application(application_id) ON DELETE CASCADE
+);
+
+CREATE TABLE Course (
+    course_id SERIAL PRIMARY KEY,
+    program_id INT NOT NULL,
+    course_title VARCHAR(150) NOT NULL,
+    credits INT CHECK (credits > 0 AND credits <= 10),
+    FOREIGN KEY (program_id) REFERENCES Program(program_id) ON DELETE CASCADE
+);
+
+CREATE TABLE Enrollment (
+    enrollment_id SERIAL PRIMARY KEY,
+    student_id INT NOT NULL,
+    course_id INT NOT NULL,
+    grade INT CHECK (grade >= 0 AND grade <= 100),
+    FOREIGN KEY (student_id) REFERENCES Student(student_id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES Course(course_id) ON DELETE CASCADE,
+    UNIQUE (student_id, course_id)
+);
+
+-- PART 5. INSERTING DATA / Заполнение тестовыми данными
+INSERT INTO Country (country_name, continent) VALUES
+('USA', 'North America'),
+('Germany', 'Europe'),
+('Japan', 'Asia'),
+('UK', 'Europe'),
+('Canada', 'North America');
+
+INSERT INTO University (country_id, university_name, ranking) VALUES
+(1, 'Harvard University', 1),
+(2, 'Technical University of Munich', 50),
+(3, 'University of Tokyo', 20),
+(4, 'Oxford University', 2),
+(1, 'MIT', 3);
+
+INSERT INTO Student (home_university_id, first_name, last_name, email, gpa) VALUES
+(1, 'John', 'Doe', 'john.doe@harvard.edu', 3.8),
+(2, 'Anna', 'Muller', 'anna.m@tum.de', 3.9),
+(3, 'Kenji', 'Sato', 'kenji.s@tokyo.jp', 3.5),
+(4, 'Emma', 'Watson', 'emma.w@oxford.uk', 4.0),
+(5, 'Lucas', 'Smith', 'lucas.s@mit.edu', 3.6);
+
+INSERT INTO Program (host_university_id, program_name, semester, max_capacity) VALUES
+(2, 'European Engineering Exchange', 'Fall 2026', 15),
+(3, 'Asian Cultural Studies', 'Spring 2027', 10),
+(4, 'Global Humanities', 'Fall 2026', 20),
+(1, 'Advanced Sciences Program', 'Spring 2027', 12);
+
+INSERT INTO Application (student_id, program_id, status, application_date) VALUES
+(1, 1, 'Approved', '2026-08-15'),
+(2, 2, 'Pending', '2026-08-20'),
+(3, 3, 'Approved', '2026-08-25'),
+(4, 4, 'Rejected', '2026-09-01'),
+(5, 1, 'Pending', '2026-09-10');
+
+INSERT INTO Document (application_id, passport_copy, motivation_letter) VALUES
+(1, TRUE, TRUE),
+(2, TRUE, FALSE),
+(3, TRUE, TRUE),
+(4, FALSE, FALSE),
+(5, TRUE, TRUE);
+
+INSERT INTO Course (program_id, course_title, credits) VALUES
+(1, 'Mechanical Engineering Basics', 5),
+(1, 'German Language A1', 3),
+(2, 'Japanese History', 4),
+(3, 'Modern European Literature', 5),
+(4, 'Quantum Physics', 6);
+
+INSERT INTO Enrollment (student_id, course_id, grade) VALUES
+(1, 1, 95),
+(1, 2, 88),
+(3, 4, 92),
+(5, 1, NULL);
+
+-- PART 6 & 12. DATABASE MODIFICATION SCENARIOS / Сценарные запросы
+
+-- Scenario 1: A new participant registers (Новый студент)
+INSERT INTO Student (home_university_id, first_name, last_name, email, gpa)
+VALUES (1, 'Alice', 'Brown', 'alice.b@harvard.edu', 3.7);
+
+-- Scenario 2: Change a participant's status (Обновление статуса заявки)
+UPDATE Application
+SET status = 'Approved'
+WHERE application_id = 2;
+
+-- Scenario 3: A score is corrected (Обновление оценки)
+UPDATE Enrollment
+SET grade = 90
+WHERE student_id = 5 AND course_id = 1;
+
+-- Scenario 4: An event is cancelled (Программа отменена - каскадное удаление заявок)
+DELETE FROM Program
+WHERE program_id = 4;
+
+-- Scenario 5: An existing participant changes university (Смена университета студента)
+UPDATE Student
+SET home_university_id = 5
+WHERE student_id = 1;
+
+-- PART 7. SQL QUERIES (15 разных запросов)
+
+-- 1. Selecting all records
+SELECT * FROM Student;
+
+-- 2. Selecting specific columns
+SELECT first_name, last_name, email FROM Student;
+
+-- 3. Filtering records using WHERE
+SELECT * FROM Program WHERE semester = 'Fall 2026';
+
+-- 4. Sorting using ORDER BY
+SELECT * FROM University ORDER BY ranking ASC;
+
+-- 5. Using LIKE
+SELECT * FROM Student WHERE email LIKE '%@harvard.edu';
+
+-- 6. Using BETWEEN
+SELECT * FROM Enrollment WHERE grade BETWEEN 85 AND 100;
+
+-- 7. Using IN
+SELECT * FROM Country WHERE continent IN ('Europe', 'Asia');
+
+-- 8. Aggregate functions (COUNT, SUM, AVG)
+SELECT COUNT(*) AS total_students FROM Student;
+SELECT SUM(credits) AS total_credits FROM Course;
+SELECT AVG(gpa) AS average_gpa FROM Student;
+
+-- 9. GROUP BY
+SELECT status, COUNT(*) AS application_count 
+FROM Application 
+GROUP BY status;
+
+-- 10. HAVING
+SELECT program_id, COUNT(*) AS course_count 
+FROM Course 
+GROUP BY program_id 
+HAVING COUNT(*) > 1;
+
+-- 11. INNER JOIN
+SELECT s.first_name, s.last_name, u.university_name 
+FROM Student s 
+INNER JOIN University u ON s.home_university_id = u.university_id;
+
+-- 12. LEFT JOIN
+SELECT s.first_name, a.status 
+FROM Student s 
+LEFT JOIN Application a ON s.student_id = a.student_id;
+
+-- 13. Multiple-table joins
+SELECT s.first_name, c.course_title, e.grade 
+FROM Student s
+JOIN Enrollment e ON s.student_id = e.student_id
+JOIN Course c ON e.course_id = c.course_id;
+
+-- 14. Subquery (Подзапрос IN)
+SELECT course_title FROM Course 
+WHERE program_id IN (SELECT program_id FROM Application WHERE status = 'Approved');
+
+-- 15. Complex analytical query (Сложный запрос со всеми элементами)
+SELECT u.university_name, COUNT(a.application_id) AS total_applications, AVG(s.gpa) AS avg_applicant_gpa
+FROM University u
+JOIN Student s ON u.university_id = s.home_university_id
+JOIN Application a ON s.student_id = a.student_id
+WHERE a.status = 'Approved'
+GROUP BY u.university_name
+ORDER BY total_applications DESC;
+
+-- PART 9. VIEWS / Создание 2 представлений
+-- Представление 1: Сводка успеваемости студентов (participant performance overview)
+CREATE VIEW StudentPerformanceOverview AS
+SELECT s.first_name, s.last_name, c.course_title, e.grade
+FROM Student s
+JOIN Enrollment e ON s.student_id = e.student_id
+JOIN Course c ON e.course_id = c.course_id;
+
+-- Представление 2: Статистика заявок по программам (competition statistics / program statistics)
+CREATE VIEW ProgramApplicationStats AS
+SELECT p.program_name, COUNT(a.application_id) AS total_applications, 
+       SUM(CASE WHEN a.status = 'Approved' THEN 1 ELSE 0 END) AS approved_count
+FROM Program p
+LEFT JOIN Application a ON p.program_id = a.program_id
+GROUP BY p.program_name;
+
+-- PART 8. DATA ANALYSIS / 5 сложных аналитических бизнес-запросов
+
+-- Вопрос 1: Какие университеты отправляют больше всего студентов по обмену? (Which universities have the highest number of participants?)
+SELECT u.university_name, COUNT(s.student_id) AS sent_students
+FROM University u
+JOIN Student s ON u.university_id = s.home_university_id
+GROUP BY u.university_name
+ORDER BY sent_students DESC;
+
+-- Вопрос 2: Какой средний балл (GPA) у студентов из каждой страны? (Performance report)
+SELECT c.country_name, AVG(s.gpa) AS average_gpa
+FROM Country c
+JOIN University u ON c.country_id = u.country_id
+JOIN Student s ON u.university_id = s.home_university_id
+GROUP BY c.country_name;
+
+-- Вопрос 3: Какие курсы имеют самые высокие средние оценки? (Which subjects have the highest average scores?)
+SELECT c.course_title, AVG(e.grade) AS average_grade
+FROM Course c
+JOIN Enrollment e ON c.course_id = e.course_id
+GROUP BY c.course_title
+ORDER BY average_grade DESC;
+
+-- Вопрос 4: Сколько заявок получило статус Approved в каждом семестре? 
+SELECT p.semester, COUNT(a.application_id) AS approved_applications
+FROM Program p
+JOIN Application a ON p.program_id = a.program_id
+WHERE a.status = 'Approved'
+GROUP BY p.semester;
+
+-- Вопрос 5: У каких студентов не хватает документов для одобрения заявки? (Missing documents analysis)
+SELECT s.first_name, s.last_name, p.program_name
+FROM Student s
+JOIN Application a ON s.student_id = a.student_id
+JOIN Program p ON a.program_id = p.program_id
+JOIN Document d ON a.application_id = d.application_id
+WHERE (d.passport_copy = FALSE OR d.motivation_letter = FALSE) AND a.status = 'Pending';
